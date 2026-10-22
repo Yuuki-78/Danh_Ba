@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1083945250843",
+    "project_id": "contactify-df35b",
+    "storage_bucket": "contactify-df35b.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1083945250843:android:d19187e2711128999b48be",
+        "android_client_info": {
+          "package_name": "com.example.contactify"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBt1baQUBPSu0GAMIxbGDdUSVhEOgd6hBU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

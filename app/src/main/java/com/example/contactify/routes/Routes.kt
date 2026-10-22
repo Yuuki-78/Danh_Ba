@@ -1,6 +1,8 @@
 package com.example.contactify.routes
 
 object Routes {
+    const val LOGIN = "login"
+    const val REGISTER = "register"
     const val CONTACTS = "contacts"
     const val DETAIL = "detail/{contactId}"
     const val EDIT = "edit/{contactId}"
@@ -16,6 +18,5 @@ object Routes {
     fun detail(contactId: Int): String = "detail/$contactId"
     fun edit(contactId: Int): String = "edit/$contactId"
 
-    // 🟢 Đảm bảo hàm này đã có trong Routes.kt
     fun userDetail(userId: Int): String = "user_detail/$userId"
 }

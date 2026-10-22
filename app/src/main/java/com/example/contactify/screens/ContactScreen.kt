@@ -9,16 +9,18 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccountBox
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Sync
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -33,16 +35,14 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.ClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
 import androidx.core.content.ContextCompat
 import com.example.contactify.components.ContactContextMenu
-import com.example.contactify.components.ContactDropdownMenu
 import com.example.contactify.components.ContactItem
 import com.example.contactify.data.ContactWithPhones
 import com.example.contactify.viewmodel.ContactViewModel
-import androidx.compose.material.icons.filled.Person
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ContactScreen(
@@ -53,7 +53,8 @@ fun ContactScreen(
     onGroupClick: () -> Unit,
     onStatisticsClick: () -> Unit,
     onAddContactClick: () -> Unit,
-    onUserListClick: () -> Unit
+    onUserListClick: () -> Unit,
+    onLogout: () -> Unit
 ) {
     val context = LocalContext.current
     val clipboardManager = androidx.compose.ui.platform.LocalClipboardManager.current
@@ -103,7 +104,7 @@ fun ContactScreen(
                         onClick = { onUserListClick() }
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Person, // 👈 Đổi từ Cloud sang Person (hoặc List)
+                            imageVector = Icons.Default.AccountBox,
                             contentDescription = "Xem danh sách User API"
                         )
                     }
@@ -125,7 +126,7 @@ fun ContactScreen(
                         )
                     }
 
-                    // Nút menu dọc ba chấm sẵn có
+                    // Nút menu dọc ba chấm tích hợp DropdownMenu trực tiếp
                     Box {
                         IconButton(
                             onClick = {
@@ -138,29 +139,48 @@ fun ContactScreen(
                             )
                         }
 
-                        // Menu chính
-                        ContactDropdownMenu(
+                        // Menu chính gộp trực tiếp tại đây để tránh lỗi thiếu file component
+                        DropdownMenu(
                             expanded = showTopMenu,
-                            onDismiss = {
-                                showTopMenu = false
-                            },
-                            onSearch = {
-                                onSearchClick()
-                            },
-                            onGroup = {
-                                onGroupClick()
-                            },
-                            onStatistics = {
-                                onStatisticsClick()
-                            },
-                            onTheme = {
-                                Toast.makeText(
-                                    context,
-                                    "Chức năng giao diện",
-                                    Toast.LENGTH_SHORT
-                                ).show()
-                            }
-                        )
+                            onDismissRequest = { showTopMenu = false }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("Tìm kiếm") },
+                                onClick = {
+                                    showTopMenu = false
+                                    onSearchClick()
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Nhóm") },
+                                onClick = {
+                                    showTopMenu = false
+                                    onGroupClick()
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Thống kê") },
+                                onClick = {
+                                    showTopMenu = false
+                                    onStatisticsClick()
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Giao diện") },
+                                onClick = {
+                                    showTopMenu = false
+                                    Toast.makeText(context, "Chức năng giao diện", Toast.LENGTH_SHORT).show()
+                                }
+                            )
+                            // 🟢 Thêm mục Đăng xuất (Bài 7)
+                            DropdownMenuItem(
+                                text = { Text("Đăng xuất") },
+                                onClick = {
+                                    showTopMenu = false
+                                    onLogout()
+                                }
+                            )
+                        }
                     }
                 }
             )
@@ -248,7 +268,7 @@ fun ContactScreen(
                                     viewModel.toggleFavorite(item)
                                 },
 
-                                // 📋 Sao chép số đầu tiên
+                                // 📋 Sao chép số đầu tiên (Dùng clipboardManager chuẩn không bị lỗi coroutine)
                                 onCopy = {
                                     val phoneNumber = item.phoneNumbers.firstOrNull()?.phoneNumber ?: ""
                                     clipboardManager.setText(

@@ -14,12 +14,16 @@ import com.example.contactify.screens.ContactDetailScreen
 import com.example.contactify.screens.ContactEditScreen
 import com.example.contactify.screens.ContactScreen
 import com.example.contactify.screens.GroupScreen
+import com.example.contactify.screens.LoginScreen
+import com.example.contactify.screens.RegisterScreen
 import com.example.contactify.screens.SearchScreen
 import com.example.contactify.screens.StatisticsScreen
-import com.example.contactify.viewmodel.ContactViewModel
-import com.example.contactify.screens.UserListScreen
 import com.example.contactify.screens.UserDetailScreen
+import com.example.contactify.screens.UserListScreen
+import com.example.contactify.viewmodel.ContactViewModel
 import com.example.contactify.viewmodel.UserViewModel
+import com.google.firebase.auth.FirebaseAuth
+
 @Composable
 fun AppNavigation() {
     val navController = rememberNavController()
@@ -28,10 +32,35 @@ fun AppNavigation() {
     // Lấy danh sách thời gian thực từ Room Database
     val contactsList by viewModel.contactsWithPhones.collectAsState()
 
+    // Kiểm tra xem user đã đăng nhập và xác thực email chưa để cấu hình màn hình khởi đầu
+    val currentUser = FirebaseAuth.getInstance().currentUser
+    val startDest = if (currentUser != null && currentUser.isEmailVerified) {
+        Routes.CONTACTS
+    } else {
+        Routes.LOGIN
+    }
+
     NavHost(
         navController = navController,
-        startDestination = Routes.CONTACTS
+        startDestination = startDest
     ) {
+        // 🟢 0A. MÀN HÌNH ĐĂNG NHẬP (CẦN THIẾT ĐỂ KHÔNG BỊ VĂNG APP)
+        composable(Routes.LOGIN) {
+            LoginScreen(
+                navController = navController,
+                onLoginSuccess = {
+                    navController.navigate(Routes.CONTACTS) {
+                        popUpTo(Routes.LOGIN) { inclusive = true }
+                    }
+                }
+            )
+        }
+
+        // 🟢 0B. MÀN HÌNH ĐĂNG KÝ (BÀI 7)
+        composable(Routes.REGISTER) {
+            RegisterScreen(navController = navController)
+        }
+
         // 1. DANH SÁCH CONTACT
         composable(Routes.CONTACTS) {
             ContactScreen(
@@ -52,11 +81,16 @@ fun AppNavigation() {
                     navController.navigate(Routes.STATISTICS)
                 },
                 onAddContactClick = {
-                    // Truyền ID là -1 để màn hình sửa/thêm biết đây là thêm mới contact
                     navController.navigate(Routes.edit(-1))
                 },
                 onUserListClick = {
                     navController.navigate(Routes.USER_LIST)
+                },
+                onLogout = {
+                    FirebaseAuth.getInstance().signOut()
+                    navController.navigate(Routes.LOGIN) {
+                        popUpTo(Routes.CONTACTS) { inclusive = true }
+                    }
                 }
             )
         }
@@ -73,7 +107,7 @@ fun AppNavigation() {
 
             if (item != null) {
                 ContactDetailScreen(
-                    contact = item, // Truyền ContactWithPhones
+                    contact = item,
                     onBack = { navController.popBackStack() },
                     onEdit = {
                         navController.navigate(Routes.edit(item.contact.id))
@@ -92,13 +126,10 @@ fun AppNavigation() {
             val contactId = backStackEntry.arguments?.getInt("contactId") ?: -1
 
             if (contactId == -1) {
-                // Thêm mới: Truyền dữ liệu rỗng và nhận thêm contentResolver
                 ContactEditScreen(
-                    contact = null, // null nghĩa là thêm mới
-                    onSave = { contentResolver, name, phones, email, group -> // 👈 Thêm contentResolver ở đây
+                    contact = null,
+                    onSave = { contentResolver, name, phones, email, group ->
                         val phoneNumber = phones.firstOrNull() ?: ""
-
-                        // 🟢 GỌI HÀM ĐỒNG BỘ 2 CHIỀU (Vừa lưu Room vừa đẩy ra máy)
                         viewModel.addNewContact(
                             contentResolver = contentResolver,
                             name = name,
@@ -113,13 +144,12 @@ fun AppNavigation() {
                     }
                 )
             } else {
-                // Sửa contact cũ (Giữ nguyên hoặc chỉnh lại chữ ký onSave nhận 5 tham số nếu ở ContactEditScreen bạn đã đổi chữ ký chung)
                 val item = contactsList.find { it.contact.id == contactId }
 
                 if (item != null) {
                     ContactEditScreen(
                         contact = item,
-                        onSave = { _, name, phones, email, group -> // Dấu _ nếu ở phần sửa không dùng contentResolver
+                        onSave = { _, name, phones, email, group ->
                             viewModel.updateContact(
                                 id = item.contact.id,
                                 name = name,
@@ -175,9 +205,7 @@ fun AppNavigation() {
                 onUserClick = { userId ->
                     navController.navigate(Routes.userDetail(userId))
                 },
-                onAddClick = {
-                    // Xử lý thêm user nếu muốn
-                }
+                onAddClick = { }
             )
         }
 
@@ -198,5 +226,4 @@ fun AppNavigation() {
             )
         }
     }
-
 }
