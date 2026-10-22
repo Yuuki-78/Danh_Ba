@@ -87,13 +87,17 @@ fun AppNavigation() {
             val contactId = backStackEntry.arguments?.getInt("contactId") ?: -1
 
             if (contactId == -1) {
-                // Thêm mới: Truyền dữ liệu rỗng
+                // Thêm mới: Truyền dữ liệu rỗng và nhận thêm contentResolver
                 ContactEditScreen(
                     contact = null, // null nghĩa là thêm mới
-                    onSave = { name, phones, email, group ->
-                        viewModel.addContact(
+                    onSave = { contentResolver, name, phones, email, group -> // 👈 Thêm contentResolver ở đây
+                        val phoneNumber = phones.firstOrNull() ?: ""
+
+                        // 🟢 GỌI HÀM ĐỒNG BỘ 2 CHIỀU (Vừa lưu Room vừa đẩy ra máy)
+                        viewModel.addNewContact(
+                            contentResolver = contentResolver,
                             name = name,
-                            phoneNumbers = phones, // Truyền List<String> số điện thoại
+                            phone = phoneNumber,
                             email = email,
                             group = group
                         )
@@ -104,13 +108,13 @@ fun AppNavigation() {
                     }
                 )
             } else {
-                // Sửa contact cũ
+                // Sửa contact cũ (Giữ nguyên hoặc chỉnh lại chữ ký onSave nhận 5 tham số nếu ở ContactEditScreen bạn đã đổi chữ ký chung)
                 val item = contactsList.find { it.contact.id == contactId }
 
                 if (item != null) {
                     ContactEditScreen(
-                        contact = item, // Truyền ContactWithPhones cũ để load dữ liệu lên form
-                        onSave = { name, phones, email, group ->
+                        contact = item,
+                        onSave = { _, name, phones, email, group -> // Dấu _ nếu ở phần sửa không dùng contentResolver
                             viewModel.updateContact(
                                 id = item.contact.id,
                                 name = name,

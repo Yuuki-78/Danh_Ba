@@ -1,10 +1,15 @@
 package com.example.contactify.screens
 
+import android.Manifest
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -13,6 +18,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -30,6 +36,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.ClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
+import androidx.core.content.ContextCompat
 import com.example.contactify.components.ContactContextMenu
 import com.example.contactify.components.ContactDropdownMenu
 import com.example.contactify.components.ContactItem
@@ -65,6 +72,18 @@ fun ContactScreen(
         mutableStateOf(false)
     }
 
+    // Bộ khởi chạy xin quyền đọc danh bạ hệ thống cho Bài thực hành 05
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            viewModel.syncSystemContacts(context.contentResolver)
+            Toast.makeText(context, "Đang đồng bộ danh bạ từ điện thoại...", Toast.LENGTH_SHORT).show()
+        } else {
+            Toast.makeText(context, "Cần cấp quyền đọc danh bạ để đồng bộ!", Toast.LENGTH_SHORT).show()
+        }
+    }
+
     // 1. Lấy danh sách thời gian thực từ Room Database
     val contactsWithPhones by viewModel.contactsWithPhones.collectAsState()
 
@@ -78,8 +97,26 @@ fun ContactScreen(
                     Text("Danh bạ")
                 },
                 actions = {
+                    // 🟢 NÚT ĐỒNG BỘ DANH BẠ HỆ THỐNG (BÀI THỰC HÀNH 05)
+                    IconButton(
+                        onClick = {
+                            if (ContextCompat.checkSelfPermission(context, Manifest.permission.READ_CONTACTS)
+                                == PackageManager.PERMISSION_GRANTED) {
+                                viewModel.syncSystemContacts(context.contentResolver)
+                                Toast.makeText(context, "Đang đồng bộ danh bạ...", Toast.LENGTH_SHORT).show()
+                            } else {
+                                permissionLauncher.launch(Manifest.permission.READ_CONTACTS)
+                            }
+                        }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Sync,
+                            contentDescription = "Đồng bộ danh bạ"
+                        )
+                    }
+
+                    // Nút menu dọc ba chấm sẵn có
                     Box {
-                        // Nút ⋮
                         IconButton(
                             onClick = {
                                 showTopMenu = true

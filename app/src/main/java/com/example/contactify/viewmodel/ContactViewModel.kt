@@ -14,10 +14,13 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import android.content.ContentResolver
 
 class ContactViewModel(application: Application) : AndroidViewModel(application) {
 
     private val repository: ContactRepository
+
+
 
     // Danh sách liên hệ kèm số điện thoại lấy từ Room Database (Real-time qua Flow)
     val contactsWithPhones: StateFlow<List<ContactWithPhones>>
@@ -164,7 +167,49 @@ class ContactViewModel(application: Application) : AndroidViewModel(application)
     fun getContactsByGroup(list: List<ContactWithPhones>, group: String): List<ContactWithPhones> {
         return list.filter { it.contact.group == group }
     }
+    // Thêm hàm này vào trong ContactViewModel.kt
+    fun syncSystemContacts(contentResolver: android.content.ContentResolver) {
+        viewModelScope.launch {
+            // 1. Đọc danh bạ từ điện thoại qua Repository
+            val systemContacts = repository.fetchSystemContacts(contentResolver)
 
+            // 2. Lấy danh sách hiện tại trong Room Database ra để so sánh
+            val currentList = contactsWithPhones.value
+
+            // 3. Duyệt qua từng người từ danh bạ hệ thống
+            for ((name, phones) in systemContacts) {
+                // Kiểm tra xem tên này đã có trong Room Database chưa
+                val isExist = currentList.any { it.contact.name.equals(name, ignoreCase = true) }
+
+                // Nếu chưa có thì tự động thêm mới vào Room Database
+                if (!isExist) {
+                    val newContact = ContactEntity(
+                        name = name,
+                        email = "",
+                        group = "Danh bạ máy", // Đặt tên nhóm phân biệt
+                        isFavorite = false
+                    )
+                    repository.insertContactWithPhones(newContact, phones)
+                }
+            }
+        }
+    }
+    fun addNewContact(contentResolver: ContentResolver, name: String, phone: String, email: String, group: String) {
+        viewModelScope.launch {
+            // Truyền đầy đủ các trường vào ContactEntity
+            val newContact = ContactEntity(
+                name = name,
+                email = email,
+                group = group
+            )
+
+            // 1. Lưu vào Room Database của app
+            repository.insertContactWithPhones(newContact, listOf(phone))
+
+            // 2. Đồng thời đẩy ra danh bạ hệ thống
+            repository.addContactToSystem(contentResolver, name, phone)
+        }
+    }
     // =========================
     // Thống kê
     // =========================

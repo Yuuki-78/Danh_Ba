@@ -1,5 +1,10 @@
 package com.example.contactify.screens
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -23,8 +28,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import com.example.contactify.data.ContactWithPhones
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -32,6 +39,7 @@ import com.example.contactify.data.ContactWithPhones
 fun ContactEditScreen(
     contact: ContactWithPhones?, // Nhận vào null (thêm mới) hoặc ContactWithPhones (sửa)
     onSave: (
+        contentResolver: android.content.ContentResolver,
         name: String,
         phones: List<String>, // Truyền danh sách số điện thoại dạng List<String>
         email: String,
@@ -39,7 +47,10 @@ fun ContactEditScreen(
     ) -> Unit,
     onCancel: () -> Unit
 ) {
-    // Lấy dữ liệu cũ nếu là sửa, hoặc để trống nếu là thêm mới
+    val context = LocalContext.current
+    val contentResolver = context.contentResolver
+
+    // 🟢 1. Khai báo các state TRƯỚC
     val initialName = contact?.contact?.name ?: ""
     val initialPhone = contact?.phoneNumbers?.firstOrNull()?.phoneNumber ?: ""
     val initialEmail = contact?.contact?.email ?: ""
@@ -49,6 +60,23 @@ fun ContactEditScreen(
     var phoneState by remember { mutableStateOf(TextFieldValue(initialPhone)) }
     var emailState by remember { mutableStateOf(TextFieldValue(initialEmail)) }
     var groupState by remember { mutableStateOf(TextFieldValue(initialGroup)) }
+
+    // 🟢 2. Khởi tạo bộ xin quyền SAU KHI các state đã được định nghĩa
+    val writePermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            onSave(
+                contentResolver,
+                nameState.text,
+                listOf(phoneState.text),
+                emailState.text,
+                groupState.text
+            )
+        } else {
+            Toast.makeText(context, "Cần cấp quyền ghi danh bạ để đồng bộ ra máy!", Toast.LENGTH_SHORT).show()
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -126,12 +154,19 @@ fun ContactEditScreen(
             Button(
                 onClick = {
                     if (nameState.text.isNotBlank() && phoneState.text.isNotBlank()) {
-                        onSave(
-                            nameState.text,
-                            listOf(phoneState.text), // Đóng gói thành List<String>
-                            emailState.text,
-                            groupState.text
-                        )
+                        // Kiểm tra quyền WRITE_CONTACTS trước khi thực hiện
+                        if (ContextCompat.checkSelfPermission(context, Manifest.permission.WRITE_CONTACTS)
+                            == PackageManager.PERMISSION_GRANTED) {
+                            onSave(
+                                contentResolver,
+                                nameState.text,
+                                listOf(phoneState.text),
+                                emailState.text,
+                                groupState.text
+                            )
+                        } else {
+                            writePermissionLauncher.launch(Manifest.permission.WRITE_CONTACTS)
+                        }
                     }
                 },
                 modifier = Modifier.fillMaxWidth()
