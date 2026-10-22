@@ -17,6 +17,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -24,24 +25,27 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.example.contactify.components.ContactItem
-import com.example.contactify.data.Contact
+import com.example.contactify.data.ContactWithPhones
 import com.example.contactify.viewmodel.ContactViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun GroupScreen(
     viewModel: ContactViewModel,
-    onContactClick: (Contact) -> Unit,
+    onContactClick: (ContactWithPhones) -> Unit, // Dùng ContactWithPhones
     onBack: () -> Unit
 ) {
+    // Lấy danh sách thời gian thực từ Room Database
+    val contactsList by viewModel.contactsWithPhones.collectAsState()
+
     // Nhóm đang được chọn
     var selectedGroup by remember {
         mutableStateOf<String?>(null)
     }
 
-    // Lấy danh sách nhóm từ Contact
-    val groups = viewModel.contacts
-        .map { it.group }
+    // Lấy danh sách nhóm từ ContactWithPhones
+    val groups = contactsList
+        .map { it.contact.group }
         .distinct()
         .filter { it.isNotBlank() }
 
@@ -49,7 +53,7 @@ fun GroupScreen(
     val contacts = if (selectedGroup == null) {
         emptyList()
     } else {
-        viewModel.getContactsByGroup(selectedGroup!!)
+        contactsList.filter { it.contact.group == selectedGroup }
     }
 
     Scaffold(
@@ -58,7 +62,6 @@ fun GroupScreen(
                 title = {
                     Text("Nhóm liên hệ")
                 },
-
                 navigationIcon = {
                     IconButton(
                         onClick = onBack
@@ -97,6 +100,7 @@ fun GroupScreen(
             ) {
 
                 items(groups) { group ->
+                    val count = contactsList.count { it.contact.group == group }
 
                     Button(
                         onClick = {
@@ -107,7 +111,7 @@ fun GroupScreen(
                             .padding(vertical = 4.dp)
                     ) {
                         Text(
-                            text = "$group (${viewModel.getGroupCount(group)})"
+                            text = "$group ($count)"
                         )
                     }
                 }
@@ -130,19 +134,16 @@ fun GroupScreen(
 
                     items(
                         items = contacts,
-                        key = { it.id }
-                    ) { contact ->
+                        key = { it.contact.id } // Lấy id từ contact bên trong
+                    ) { item ->
 
                         ContactItem(
-                            contact = contact,
-
+                            item = item, // Truyền ContactWithPhones
                             onClick = {
-                                onContactClick(contact)
+                                onContactClick(item)
                             },
-
                             onLongClick = {
-                                // Context Menu được xử lý
-                                // ở ContactScreen
+                                // Context Menu được xử lý ở ContactScreen
                             }
                         )
                     }

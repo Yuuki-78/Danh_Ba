@@ -16,15 +16,18 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.example.contactify.data.Contact
+import com.example.contactify.data.ContactWithPhones
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun ContactItem(
-    contact: Contact,
+    item: ContactWithPhones, // Đổi từ Contact sang ContactWithPhones
     onClick: () -> Unit,
     onLongClick: () -> Unit
 ) {
+    val contact = item.contact
+    val phoneNumbers = item.phoneNumbers
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -41,14 +44,16 @@ fun ContactItem(
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
 
-            Column {
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = contact.name,
                     style = MaterialTheme.typography.titleMedium
                 )
 
+                // Hiển thị số điện thoại đầu tiên (hoặc các số nếu có)
+                val firstPhone = phoneNumbers.firstOrNull()?.phoneNumber ?: "Không có số điện thoại"
                 Text(
-                    text = contact.phone,
+                    text = firstPhone,
                     style = MaterialTheme.typography.bodyMedium
                 )
 

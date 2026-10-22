@@ -11,49 +11,53 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.ClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
 import com.example.contactify.components.ContactContextMenu
 import com.example.contactify.components.ContactDropdownMenu
 import com.example.contactify.components.ContactItem
-import com.example.contactify.data.Contact
+import com.example.contactify.data.ContactWithPhones
 import com.example.contactify.viewmodel.ContactViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ContactScreen(
     viewModel: ContactViewModel,
-    onContactClick: (Contact) -> Unit,
-    onEditContact: (Contact) -> Unit,
+    onContactClick: (ContactWithPhones) -> Unit,
+    onEditContact: (ContactWithPhones) -> Unit,
     onSearchClick: () -> Unit,
     onGroupClick: () -> Unit,
-    onStatisticsClick: () -> Unit
+    onStatisticsClick: () -> Unit,
+    onAddContactClick: () -> Unit
 ) {
     val context = LocalContext.current
-    val clipboardManager = LocalClipboardManager.current
+    val clipboardManager = androidx.compose.ui.platform.LocalClipboardManager.current
 
     // Trạng thái menu trên TopAppBar
     var showTopMenu by remember {
         mutableStateOf(false)
     }
 
-    // Contact đang được nhấn giữ
+    // Contact đang được nhấn giữ (kiểu ContactWithPhones)
     var selectedContact by remember {
-        mutableStateOf<Contact?>(null)
+        mutableStateOf<ContactWithPhones?>(null)
     }
 
     // Trạng thái Context Menu
@@ -61,8 +65,11 @@ fun ContactScreen(
         mutableStateOf(false)
     }
 
-    // Danh sách Contact
-    val contacts = viewModel.getFilteredContacts()
+    // 1. Lấy danh sách thời gian thực từ Room Database
+    val contactsWithPhones by viewModel.contactsWithPhones.collectAsState()
+
+    // Lọc danh sách theo ô tìm kiếm
+    val displayedContacts = viewModel.getFilteredContacts(contactsWithPhones)
 
     Scaffold(
         topBar = {
@@ -70,10 +77,8 @@ fun ContactScreen(
                 title = {
                     Text("Danh bạ")
                 },
-
                 actions = {
                     Box {
-
                         // Nút ⋮
                         IconButton(
                             onClick = {
@@ -89,23 +94,18 @@ fun ContactScreen(
                         // Menu chính
                         ContactDropdownMenu(
                             expanded = showTopMenu,
-
                             onDismiss = {
                                 showTopMenu = false
                             },
-
                             onSearch = {
                                 onSearchClick()
                             },
-
                             onGroup = {
                                 onGroupClick()
                             },
-
                             onStatistics = {
                                 onStatisticsClick()
                             },
-
                             onTheme = {
                                 Toast.makeText(
                                     context,
@@ -117,6 +117,18 @@ fun ContactScreen(
                     }
                 }
             )
+        },
+        floatingActionButton = {
+            FloatingActionButton(
+                onClick = {
+                    onAddContactClick()
+                }
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Add,
+                    contentDescription = "Thêm liên lạc"
+                )
+            }
         }
     ) { paddingValues ->
 
@@ -126,33 +138,30 @@ fun ContactScreen(
                 .padding(paddingValues)
         ) {
 
-            // Danh sách Contact
+            // Danh sách Contact (Truyền ContactWithPhones)
             LazyColumn(
                 modifier = Modifier.fillMaxSize()
             ) {
-
                 items(
-                    items = contacts,
-                    key = { it.id }
-                ) { contact ->
+                    items = displayedContacts,
+                    key = { it.contact.id }
+                ) { item ->
 
                     Box(
                         modifier = Modifier.fillMaxWidth()
                     ) {
 
-                        // Item Contact
+                        // Item Contact (Hiển thị thông tin 1-N)
                         ContactItem(
-                            contact = contact,
-
+                            item = item,
                             // Click bình thường
                             onClick = {
-                                viewModel.selectContact(contact)
-                                onContactClick(contact)
+                                viewModel.selectContact(item)
+                                onContactClick(item)
                             },
-
                             // Nhấn giữ
                             onLongClick = {
-                                selectedContact = contact
+                                selectedContact = item
                                 showContextMenu = true
                             }
                         )
@@ -160,11 +169,11 @@ fun ContactScreen(
                         // Context Menu khi nhấn giữ
                         if (
                             showContextMenu &&
-                            selectedContact?.id == contact.id
+                            selectedContact?.contact?.id == item.contact.id
                         ) {
                             ContactContextMenu(
                                 expanded = true,
-                                contact = contact,
+                                contact = item,
 
                                 // Đóng menu
                                 onDismiss = {
@@ -172,32 +181,32 @@ fun ContactScreen(
                                     selectedContact = null
                                 },
 
-                                // 📞 Gọi
+                                // 📞 Gọi (Lấy số điện thoại đầu tiên trong danh sách 1-N)
                                 onCall = {
+                                    val phoneNumber = item.phoneNumbers.firstOrNull()?.phoneNumber ?: ""
                                     val intent = Intent(
                                         Intent.ACTION_DIAL,
-                                        Uri.parse("tel:${contact.phone}")
+                                        Uri.parse("tel:$phoneNumber")
                                     )
-
                                     context.startActivity(intent)
                                 },
 
                                 // ✏️ Sửa
                                 onEdit = {
-                                    onEditContact(contact)
+                                    onEditContact(item)
                                 },
 
                                 // ⭐ Yêu thích
                                 onFavorite = {
-                                    viewModel.toggleFavorite(contact)
+                                    viewModel.toggleFavorite(item)
                                 },
 
-                                // 📋 Sao chép
+                                // 📋 Sao chép số đầu tiên
                                 onCopy = {
+                                    val phoneNumber = item.phoneNumbers.firstOrNull()?.phoneNumber ?: ""
                                     clipboardManager.setText(
-                                        AnnotatedString(contact.phone)
+                                        AnnotatedString(phoneNumber)
                                     )
-
                                     Toast.makeText(
                                         context,
                                         "Đã sao chép số điện thoại",
@@ -207,8 +216,7 @@ fun ContactScreen(
 
                                 // 🗑️ Xóa
                                 onDelete = {
-                                    viewModel.deleteContact(contact)
-
+                                    viewModel.deleteContact(item)
                                     Toast.makeText(
                                         context,
                                         "Đã xóa liên hệ",

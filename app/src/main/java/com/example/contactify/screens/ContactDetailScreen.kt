@@ -21,22 +21,24 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.example.contactify.data.Contact
+import com.example.contactify.data.ContactWithPhones
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ContactDetailScreen(
-    contact: Contact,
+    contact: ContactWithPhones, // Dùng ContactWithPhones
     onBack: () -> Unit,
     onEdit: () -> Unit
 ) {
+    val c = contact.contact
+    val phones = contact.phoneNumbers
+
     Scaffold(
         topBar = {
             TopAppBar(
                 title = {
                     Text("Chi tiết liên hệ")
                 },
-
                 navigationIcon = {
                     IconButton(
                         onClick = onBack
@@ -47,7 +49,6 @@ fun ContactDetailScreen(
                         )
                     }
                 },
-
                 actions = {
                     IconButton(
                         onClick = onEdit
@@ -72,24 +73,31 @@ fun ContactDetailScreen(
 
             // Tên Contact
             Text(
-                text = contact.name
+                text = c.name
             )
 
             Spacer(
                 modifier = Modifier.height(16.dp)
             )
 
-            // Số điện thoại
-            Row(
+            // Số điện thoại (Hiển thị danh sách 1-N)
+            Column(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text(
                     text = "Số điện thoại: "
                 )
-
-                Text(
-                    text = contact.phone
-                )
+                Spacer(modifier = Modifier.height(4.dp))
+                if (phones.isEmpty()) {
+                    Text(text = "Chưa có")
+                } else {
+                    phones.forEach { p ->
+                        Text(
+                            text = "• ${p.phoneNumber}",
+                            modifier = Modifier.padding(start = 8.dp, bottom = 2.dp)
+                        )
+                    }
+                }
             }
 
             Spacer(
@@ -105,10 +113,10 @@ fun ContactDetailScreen(
                 )
 
                 Text(
-                    text = if (contact.email.isBlank()) {
+                    text = if (c.email.isBlank()) {
                         "Chưa có"
                     } else {
-                        contact.email
+                        c.email
                     }
                 )
             }
@@ -126,7 +134,7 @@ fun ContactDetailScreen(
                 )
 
                 Text(
-                    text = contact.group
+                    text = c.group
                 )
             }
 
@@ -142,7 +150,7 @@ fun ContactDetailScreen(
                     text = "Yêu thích: "
                 )
 
-                if (contact.isFavorite) {
+                if (c.isFavorite) {
                     Icon(
                         imageVector = Icons.Default.Star,
                         contentDescription = "Yêu thích"

@@ -13,10 +13,13 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.example.contactify.viewmodel.ContactViewModel
@@ -27,15 +30,18 @@ fun StatisticsScreen(
     viewModel: ContactViewModel,
     onBack: () -> Unit
 ) {
+    // Lấy danh sách thời gian thực từ Room Database
+    val contactsList by viewModel.contactsWithPhones.collectAsState()
+
     // Tổng số liên hệ
-    val totalContacts = viewModel.getTotalContacts()
+    val totalContacts = contactsList.size
 
     // Tổng số liên hệ yêu thích
-    val favoriteContacts = viewModel.getFavoriteCount()
+    val favoriteContacts = contactsList.count { it.contact.isFavorite }
 
-    // Lấy danh sách nhóm
-    val groups = viewModel.contacts
-        .map { it.group }
+    // Lấy danh sách nhóm độc nhất
+    val groups = contactsList
+        .map { it.contact.group }
         .distinct()
         .filter { it.isNotBlank() }
 
@@ -45,7 +51,6 @@ fun StatisticsScreen(
                 title = {
                     Text("Thống kê danh bạ")
                 },
-
                 navigationIcon = {
                     IconButton(
                         onClick = onBack
@@ -65,7 +70,6 @@ fun StatisticsScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
                 .padding(16.dp),
-
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
 
@@ -94,15 +98,17 @@ fun StatisticsScreen(
             // =========================
             item {
                 Text(
-                    text = "👥 Thống kê theo nhóm"
+                    text = "👥 Thống kê theo nhóm",
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.padding(top = 8.dp)
                 )
             }
 
             items(groups) { group ->
-
+                val groupCount = contactsList.count { it.contact.group == group }
                 StatisticsCard(
                     title = group,
-                    value = "${viewModel.getGroupCount(group)} liên hệ"
+                    value = "$groupCount liên hệ"
                 )
             }
         }
@@ -121,11 +127,13 @@ private fun StatisticsCard(
             modifier = Modifier.padding(20.dp)
         ) {
             Text(
-                text = title
+                text = title,
+                style = MaterialTheme.typography.bodyLarge
             )
 
             Text(
                 text = value,
+                style = MaterialTheme.typography.titleLarge,
                 modifier = Modifier.padding(top = 8.dp)
             )
         }

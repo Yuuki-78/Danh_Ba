@@ -11,12 +11,12 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import com.example.contactify.data.Contact
+import com.example.contactify.data.ContactWithPhones
 
 @Composable
 fun ContactContextMenu(
     expanded: Boolean,
-    contact: Contact,
+    contact: ContactWithPhones, // Đổi từ Contact sang ContactWithPhones
     onDismiss: () -> Unit,
     onCall: () -> Unit,
     onEdit: () -> Unit,
@@ -67,7 +67,7 @@ fun ContactContextMenu(
         DropdownMenuItem(
             text = {
                 Text(
-                    if (contact.isFavorite)
+                    if (contact.contact.isFavorite) // Truy cập qua contact.isFavorite
                         "Bỏ yêu thích"
                     else
                         "Thêm vào yêu thích"

@@ -1,105 +1,85 @@
 package com.example.contactify.viewmodel
 
-import androidx.compose.runtime.mutableStateListOf
-import androidx.lifecycle.ViewModel
-import com.example.contactify.data.Contact
+import android.app.Application
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.viewModelScope
+import com.example.contactify.data.ContactDatabase
+import com.example.contactify.data.ContactEntity
+import com.example.contactify.data.ContactWithPhones
+import com.example.contactify.repository.ContactRepository
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 
-class ContactViewModel : ViewModel() {
+class ContactViewModel(application: Application) : AndroidViewModel(application) {
 
-    // Danh sách liên hệ
-    private val _contacts = mutableStateListOf(
-        Contact(
-            id = 1,
-            name = "Nguyễn Văn A",
-            phone = "0123456789",
-            email = "vana@gmail.com",
-            group = "Bạn bè",
-            isFavorite = true
-        ),
-        Contact(
-            id = 2,
-            name = "Trần Thị B",
-            phone = "0987654321",
-            email = "thib@gmail.com",
-            group = "Gia đình"
-        ),
-        Contact(
-            id = 3,
-            name = "Lê Văn C",
-            phone = "0912345678",
-            email = "vanc@gmail.com",
-            group = "Trường học"
-        )
-    )
+    private val repository: ContactRepository
 
-    // Cho UI đọc danh sách
-    val contacts: List<Contact>
-        get() = _contacts
+    // Danh sách liên hệ kèm số điện thoại lấy từ Room Database (Real-time qua Flow)
+    val contactsWithPhones: StateFlow<List<ContactWithPhones>>
 
-    // Contact đang được chọn
-    var selectedContact: Contact? = null
+    // Contact đang được chọn để xem chi tiết hoặc chỉnh sửa
+    var selectedContact: ContactWithPhones? = null
         private set
 
-    // Trạng thái tìm kiếm
-    private var _searchQuery by mutableStateOf("")
+    // Trạng thái từ ô tìm kiếm
+    var searchQuery by mutableStateOf("")
+        private set
 
-    val searchQuery: String
-        get() = _searchQuery
+    init {
+        val contactDao = ContactDatabase.getDatabase(application).contactDao
+        repository = ContactRepository(contactDao)
 
-
-    // =========================
-    // Thêm liên hệ
-    // =========================
-    fun addContact(
-        name: String,
-        phone: String,
-        email: String,
-        group: String
-    ) {
-        val newId = if (_contacts.isEmpty()) {
-            1
-        } else {
-            _contacts.maxOf { it.id } + 1
-        }
-
-        _contacts.add(
-            Contact(
-                id = newId,
-                name = name,
-                phone = phone,
-                email = email,
-                group = group
+        contactsWithPhones = repository.allContactsWithPhones
+            .stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5000),
+                initialValue = emptyList()
             )
-        )
     }
 
     // =========================
-    // Chọn Contact
+    // Thêm liên hệ mới
     // =========================
-    fun selectContact(contact: Contact) {
+    fun addContact(
+        name: String,
+        phoneNumbers: List<String>,
+        email: String,
+        group: String,
+        isFavorite: Boolean = false
+    ) {
+        viewModelScope.launch {
+            val newContact = ContactEntity(
+                name = name,
+                email = email,
+                group = group,
+                isFavorite = isFavorite
+            )
+            repository.insertContactWithPhones(newContact, phoneNumbers)
+        }
+    }
+
+    // =========================
+    // Chọn Contact để xem/sửa
+    // =========================
+    fun selectContact(contact: ContactWithPhones?) {
         selectedContact = contact
     }
 
     // =========================
     // Xóa Contact
     // =========================
-    fun deleteContact(contact: Contact) {
-        _contacts.remove(contact)
-
-        if (selectedContact?.id == contact.id) {
-            selectedContact = null
+    fun deleteContact(contactWithPhones: ContactWithPhones) {
+        viewModelScope.launch {
+            repository.deleteContact(contactWithPhones.contact)
+            if (selectedContact?.contact?.id == contactWithPhones.contact.id) {
+                selectedContact = null
+            }
         }
-    }
-
-    // =========================
-    // Xóa tất cả
-    // =========================
-    fun deleteAllContacts() {
-        _contacts.clear()
-        selectedContact = null
     }
 
     // =========================
@@ -108,97 +88,89 @@ class ContactViewModel : ViewModel() {
     fun updateContact(
         id: Int,
         name: String,
-        phone: String,
+        phoneNumbers: List<String>,
         email: String,
         group: String
     ) {
-        val index = _contacts.indexOfFirst { it.id == id }
+        viewModelScope.launch {
+            val existingFavorite = contactsWithPhones.value
+                .find { it.contact.id == id }?.contact?.isFavorite ?: false
 
-        if (index != -1) {
-            val oldContact = _contacts[index]
-
-            _contacts[index] = oldContact.copy(
+            val contactEntity = ContactEntity(
+                id = id,
                 name = name,
-                phone = phone,
                 email = email,
-                group = group
+                group = group,
+                isFavorite = existingFavorite
             )
+            repository.updateContactWithPhones(contactEntity, phoneNumbers)
+        }
+    }
 
-            selectedContact = _contacts[index]
+    fun updateContact(
+        contactEntity: ContactEntity,
+        phoneNumbers: List<String>
+    ) {
+        viewModelScope.launch {
+            repository.updateContactWithPhones(contactEntity, phoneNumbers)
         }
     }
 
     // =========================
-    // Yêu thích
+    // Đổi trạng thái Yêu thích
     // =========================
-    fun toggleFavorite(contact: Contact) {
-        val index = _contacts.indexOfFirst {
-            it.id == contact.id
-        }
-
-        if (index != -1) {
-            _contacts[index] = _contacts[index].copy(
-                isFavorite = !_contacts[index].isFavorite
+    fun toggleFavorite(contactWithPhones: ContactWithPhones) {
+        viewModelScope.launch {
+            val updatedContact = contactWithPhones.contact.copy(
+                isFavorite = !contactWithPhones.contact.isFavorite
             )
+            val phoneNumbers = contactWithPhones.phoneNumbers.map { it.phoneNumber }
+            repository.updateContactWithPhones(updatedContact, phoneNumbers)
 
-            if (selectedContact?.id == contact.id) {
-                selectedContact = _contacts[index]
+            if (selectedContact?.contact?.id == updatedContact.id) {
+                selectedContact = contactWithPhones.copy(contact = updatedContact)
             }
         }
     }
 
     // =========================
-    // Tìm kiếm
+    // Tìm kiếm và Lọc dữ liệu (Đổi tên thành updateSearchQuery để tránh trùng)
     // =========================
-    fun setSearchQuery(query: String) {
-        _searchQuery = query
+    fun updateSearchQuery(query: String) {
+        searchQuery = query
     }
 
-    fun getFilteredContacts(): List<Contact> {
-        if (searchQuery.isBlank()) {
-            return contacts
-        }
-
-        return contacts.filter {
-            it.name.contains(searchQuery, ignoreCase = true) ||
-                    it.phone.contains(searchQuery)
+    fun getFilteredContacts(list: List<ContactWithPhones>): List<ContactWithPhones> {
+        if (searchQuery.isBlank()) return list
+        return list.filter { item ->
+            item.contact.name.contains(searchQuery, ignoreCase = true) ||
+                    item.phoneNumbers.any { it.phoneNumber.contains(searchQuery) }
         }
     }
 
-    // =========================
-    // Lọc yêu thích
-    // =========================
-    fun getFavoriteContacts(): List<Contact> {
-        return contacts.filter {
-            it.isFavorite
+    fun getFilteredContacts(): List<ContactWithPhones> {
+        val list = contactsWithPhones.value
+        if (searchQuery.isBlank()) return list
+        return list.filter { item ->
+            item.contact.name.contains(searchQuery, ignoreCase = true) ||
+                    item.phoneNumbers.any { it.phoneNumber.contains(searchQuery) }
         }
     }
 
-    // =========================
-    // Lọc theo nhóm
-    // =========================
-    fun getContactsByGroup(group: String): List<Contact> {
-        return contacts.filter {
-            it.group == group
-        }
+    fun getFavoriteContacts(list: List<ContactWithPhones>): List<ContactWithPhones> {
+        return list.filter { it.contact.isFavorite }
+    }
+
+    fun getContactsByGroup(list: List<ContactWithPhones>, group: String): List<ContactWithPhones> {
+        return list.filter { it.contact.group == group }
     }
 
     // =========================
     // Thống kê
     // =========================
-    fun getTotalContacts(): Int {
-        return contacts.size
-    }
+    fun getTotalContacts(list: List<ContactWithPhones>): Int = list.size
 
-    fun getFavoriteCount(): Int {
-        return contacts.count {
-            it.isFavorite
-        }
-    }
+    fun getFavoriteCount(list: List<ContactWithPhones>): Int = list.count { it.contact.isFavorite }
 
-    fun getGroupCount(group: String): Int {
-        return contacts.count {
-            it.group == group
-        }
-    }
+    fun getGroupCount(list: List<ContactWithPhones>, group: String): Int = list.count { it.contact.group == group }
 }

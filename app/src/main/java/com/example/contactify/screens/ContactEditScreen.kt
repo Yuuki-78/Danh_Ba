@@ -23,46 +23,39 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
-import com.example.contactify.data.Contact
+import com.example.contactify.data.ContactWithPhones
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ContactEditScreen(
-    contact: Contact,
+    contact: ContactWithPhones?, // Nhận vào null (thêm mới) hoặc ContactWithPhones (sửa)
     onSave: (
         name: String,
-        phone: String,
+        phones: List<String>, // Truyền danh sách số điện thoại dạng List<String>
         email: String,
         group: String
     ) -> Unit,
     onCancel: () -> Unit
 ) {
+    // Lấy dữ liệu cũ nếu là sửa, hoặc để trống nếu là thêm mới
+    val initialName = contact?.contact?.name ?: ""
+    val initialPhone = contact?.phoneNumbers?.firstOrNull()?.phoneNumber ?: ""
+    val initialEmail = contact?.contact?.email ?: ""
+    val initialGroup = contact?.contact?.group ?: "Gia đình"
 
-    // Trạng thái các ô nhập liệu
-    var name by remember {
-        mutableStateOf(contact.name)
-    }
-
-    var phone by remember {
-        mutableStateOf(contact.phone)
-    }
-
-    var email by remember {
-        mutableStateOf(contact.email)
-    }
-
-    var group by remember {
-        mutableStateOf(contact.group)
-    }
+    var nameState by remember { mutableStateOf(TextFieldValue(initialName)) }
+    var phoneState by remember { mutableStateOf(TextFieldValue(initialPhone)) }
+    var emailState by remember { mutableStateOf(TextFieldValue(initialEmail)) }
+    var groupState by remember { mutableStateOf(TextFieldValue(initialGroup)) }
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = {
-                    Text("Sửa liên hệ")
+                    Text(if (contact == null) "Thêm liên hệ" else "Sửa liên hệ")
                 },
-
                 navigationIcon = {
                     IconButton(
                         onClick = onCancel
@@ -85,106 +78,70 @@ fun ContactEditScreen(
             verticalArrangement = Arrangement.Top
         ) {
 
-            // =========================
             // TÊN
-            // =========================
             OutlinedTextField(
-                value = name,
-                onValueChange = {
-                    name = it
-                },
-                label = {
-                    Text("Tên liên hệ")
-                },
+                value = nameState,
+                onValueChange = { nameState = it },
+                label = { Text("Tên liên hệ") },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true
             )
 
-            Spacer(
-                modifier = Modifier.height(16.dp)
-            )
+            Spacer(modifier = Modifier.height(16.dp))
 
-            // =========================
             // SỐ ĐIỆN THOẠI
-            // =========================
             OutlinedTextField(
-                value = phone,
-                onValueChange = {
-                    phone = it
-                },
-                label = {
-                    Text("Số điện thoại")
-                },
+                value = phoneState,
+                onValueChange = { phoneState = it },
+                label = { Text("Số điện thoại") },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true
             )
 
-            Spacer(
-                modifier = Modifier.height(16.dp)
-            )
+            Spacer(modifier = Modifier.height(16.dp))
 
-            // =========================
             // EMAIL
-            // =========================
             OutlinedTextField(
-                value = email,
-                onValueChange = {
-                    email = it
-                },
-                label = {
-                    Text("Email")
-                },
+                value = emailState,
+                onValueChange = { emailState = it },
+                label = { Text("Email") },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true
             )
 
-            Spacer(
-                modifier = Modifier.height(16.dp)
-            )
+            Spacer(modifier = Modifier.height(16.dp))
 
-            // =========================
             // NHÓM
-            // =========================
             OutlinedTextField(
-                value = group,
-                onValueChange = {
-                    group = it
-                },
-                label = {
-                    Text("Nhóm")
-                },
+                value = groupState,
+                onValueChange = { groupState = it },
+                label = { Text("Nhóm") },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true
             )
 
-            Spacer(
-                modifier = Modifier.height(24.dp)
-            )
+            Spacer(modifier = Modifier.height(24.dp))
 
-            // =========================
             // NÚT LƯU
-            // =========================
             Button(
                 onClick = {
-                    onSave(
-                        name,
-                        phone,
-                        email,
-                        group
-                    )
+                    if (nameState.text.isNotBlank() && phoneState.text.isNotBlank()) {
+                        onSave(
+                            nameState.text,
+                            listOf(phoneState.text), // Đóng gói thành List<String>
+                            emailState.text,
+                            groupState.text
+                        )
+                    }
                 },
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text("Lưu thay đổi")
             }
 
-            Spacer(
-                modifier = Modifier.height(12.dp)
-            )
+            Spacer(modifier = Modifier.height(12.dp))
 
-            // =========================
             // NÚT HỦY
-            // =========================
             Button(
                 onClick = onCancel,
                 modifier = Modifier.fillMaxWidth()
