@@ -8,7 +8,14 @@ object Routes {
     const val GROUP = "group"
     const val STATISTICS = "statistics"
 
-    // Hàm hỗ trợ sinh đường dẫn kèm ID tự động
+    // Route Bài 6 (Retrofit User)
+    const val USER_LIST = "user_list"
+    const val USER_DETAIL = "user_detail/{userId}"
+
+    // Hàm hỗ trợ
     fun detail(contactId: Int): String = "detail/$contactId"
     fun edit(contactId: Int): String = "edit/$contactId"
+
+    // 🟢 Đảm bảo hàm này đã có trong Routes.kt
+    fun userDetail(userId: Int): String = "user_detail/$userId"
 }

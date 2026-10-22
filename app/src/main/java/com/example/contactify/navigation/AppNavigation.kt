@@ -17,7 +17,9 @@ import com.example.contactify.screens.GroupScreen
 import com.example.contactify.screens.SearchScreen
 import com.example.contactify.screens.StatisticsScreen
 import com.example.contactify.viewmodel.ContactViewModel
-
+import com.example.contactify.screens.UserListScreen
+import com.example.contactify.screens.UserDetailScreen
+import com.example.contactify.viewmodel.UserViewModel
 @Composable
 fun AppNavigation() {
     val navController = rememberNavController()
@@ -52,6 +54,9 @@ fun AppNavigation() {
                 onAddContactClick = {
                     // Truyền ID là -1 để màn hình sửa/thêm biết đây là thêm mới contact
                     navController.navigate(Routes.edit(-1))
+                },
+                onUserListClick = {
+                    navController.navigate(Routes.USER_LIST)
                 }
             )
         }
@@ -161,5 +166,37 @@ fun AppNavigation() {
                 onBack = { navController.popBackStack() }
             )
         }
+
+        // 7. DANH SÁCH USER (RETROFIT - BÀI 06)
+        composable(Routes.USER_LIST) {
+            val userViewModel: UserViewModel = viewModel()
+            UserListScreen(
+                viewModel = userViewModel,
+                onUserClick = { userId ->
+                    navController.navigate(Routes.userDetail(userId))
+                },
+                onAddClick = {
+                    // Xử lý thêm user nếu muốn
+                }
+            )
+        }
+
+        // 8. CHI TIẾT USER (RETROFIT - BÀI 06)
+        composable(
+            route = Routes.USER_DETAIL,
+            arguments = listOf(
+                navArgument("userId") { type = NavType.IntType }
+            )
+        ) { backStackEntry ->
+            val userId = backStackEntry.arguments?.getInt("userId") ?: 0
+            val userViewModel: UserViewModel = viewModel()
+
+            UserDetailScreen(
+                userId = userId,
+                viewModel = userViewModel,
+                onBack = { navController.popBackStack() }
+            )
+        }
     }
+
 }

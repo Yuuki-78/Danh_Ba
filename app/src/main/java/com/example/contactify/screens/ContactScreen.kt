@@ -42,7 +42,7 @@ import com.example.contactify.components.ContactDropdownMenu
 import com.example.contactify.components.ContactItem
 import com.example.contactify.data.ContactWithPhones
 import com.example.contactify.viewmodel.ContactViewModel
-
+import androidx.compose.material.icons.filled.Person
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ContactScreen(
@@ -52,7 +52,8 @@ fun ContactScreen(
     onSearchClick: () -> Unit,
     onGroupClick: () -> Unit,
     onStatisticsClick: () -> Unit,
-    onAddContactClick: () -> Unit
+    onAddContactClick: () -> Unit,
+    onUserListClick: () -> Unit
 ) {
     val context = LocalContext.current
     val clipboardManager = androidx.compose.ui.platform.LocalClipboardManager.current
@@ -97,6 +98,15 @@ fun ContactScreen(
                     Text("Danh bạ")
                 },
                 actions = {
+                    // Nút chuyển sang trang User API (Bài 6)
+                    IconButton(
+                        onClick = { onUserListClick() }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Person, // 👈 Đổi từ Cloud sang Person (hoặc List)
+                            contentDescription = "Xem danh sách User API"
+                        )
+                    }
                     // 🟢 NÚT ĐỒNG BỘ DANH BẠ HỆ THỐNG (BÀI THỰC HÀNH 05)
                     IconButton(
                         onClick = {
